@@ -3,13 +3,14 @@ from sys import argv
 import json
 import pymysql
 
-connection = pymysql.connect(host='localhost',
-                             user='root',
-                             password='1',
-                             db='Store',
+
+connection = pymysql.connect(host='sql11.freesqldatabase.com',
+                             user='sql11189247',
+                             password='kdzqvMS33l',
+                             db='sql11189247',
                              charset='utf8mb4',
                              autocommit=True,
-                             cursorclass= pymysql.cursors.DictCursor)
+                             cursorclass=pymysql.cursors.DictCursor)
 cursor = connection.cursor()
 
 
@@ -39,19 +40,19 @@ def images(filename):
 
 
 @get('/categories')
-def list_Categories():
+def list_categories():
     try:
         with connection.cursor() as cursor:
             sql = "SELECT id, name from categories"
             cursor.execute(sql)
             result = cursor.fetchall()
             return json.dumps ({"STATUS": "SUCCESS", "CATEGORIES": result, "CODE":"200"})
-
     except:
         return json.dumps({"STATUS": "INTERNAL ERROR", "MSG": "There was an internal error", "CODE": "500"})
 
+
 @get('/products')
-def list_Products():
+def list_products():
     try:
         with connection.cursor() as cursor:
             sql = "SELECT * from products"
@@ -65,7 +66,7 @@ def list_Products():
 def get_Products(id):
     try:
         with connection.cursor() as cursor:
-            sql = "SELECT * from products WHERE category = {} order by favorite desc".format(id)
+            sql = "SELECT * from products WHERE category = {} order by favorite desc, id asc".format(id)
             cursor.execute(sql)
             result = cursor.fetchall()
             return json.dumps({"STATUS": "SUCCESS", "PRODUCTS": result, "CODE":"200"})
@@ -93,9 +94,49 @@ def create_category():
             sql = "INSERT INTO categories VALUES (0,'{}')".format(name)
             cursor.execute(sql)
             result = cursor.fetchall()
-            return json.dumps({"STATUS": "SUCCESS", "MSG": result, "CODE": "200"})
-    except:
-        return json.dumps({"STATUS": "INTERNAL ERROR", "MSG": "There was an internal error", "CODE": "500"})
+            return json.dumps({"STATUS": "SUCCESS", "MSG": result, "CODE": "201"})
+    except pymysql.err.IntegrityError:
+        return json.dumps({"STATUS": "ERROR", "MSG": "Category already exists", "CODE": "200"})
+    except pymysql.err.InternalError:
+        return json.dump({"STATUS": "ERROR", "MSG": "internal error", "CODE":"500" })
+
+
+@post("/product")
+def get_product():
+    try:
+        with connection.cursor() as cursor:
+            t = request.POST.get("title")
+            d = request.POST.get("desc")
+            p = request.POST.get("price")
+            i = request.POST.get("img_url")
+            c = request.POST.get("category")
+            f = request.POST.get("favorite")
+            if f is "on":
+                f = True
+            else:
+                f = False
+            sql = "INSERT INTO products values (id,'{}','{}','{}','{}','{}',{})".format(t,d,p,i,c,f)
+            print (sql)
+            cursor.execute(sql)
+            print ("its done")
+    except Exception as e:
+        try:
+            with connection.cursor() as cursor:
+                t = request.POST.get("title")
+                d = request.POST.get("desc")
+                p = request.POST.get("price")
+                i = request.POST.get("img_url")
+                c = request.POST.get("category")
+                f = request.POST.get("favorite")
+                if f is "on":
+                    f = True
+                else:
+                    f = False
+                sqla = "UPDATE products SET descrpt = '{}', price= '{}', img_url= '{}', category= '{}', favorite= {} WHERE title = '{}'".format(d, p, i, c, f, t)
+                cursor.execute(sqla)
+                return json.dumps({"STATUS": "SUCCESS", "PRODUCTS": "successfull"})
+        except Exception as e:
+            return json.dumps({"STATUS": "ERROR", "MSG": "The product was not created/updated due to an error"})
 
 
 @delete("/category/<id>")
@@ -104,6 +145,8 @@ def delete_category(id):
         with connection.cursor() as cursor:
             sql = "DELETE FROM categories WHERE id = {}".format(id)
             cursor.execute(sql)
+            sqla = "DELETE FROM products where category = {}".format(id)
+            cursor.execute(sqla)
             return json.dumps({"STATUS": "SUCCESS", "MSG": "The category was deleted successfully", "CODE": "200"})
     except:
         return json.dumps({"STATUS": "ERROR", "MSG": "The category was not deleted due to an error", "CODE": "500"})
@@ -115,7 +158,7 @@ def delete_product(id):
         with connection.cursor() as cursor:
             sql = "DELETE FROM products where id = {}".format(id)
             cursor.execute(sql)
-            return json.dumps({"STATUS": "SUCCESS", "MSG": "The product was deleted successfully", "CODE": "200"})
+            return json.dumps({"STATUS": "SUCCESS", "PRODUCTS": "The product was deleted successfully", "CODE": "200"})
     except:
         return json.dumps({"STATUS": "ERROR", "MSG": "The product was not deleted due to an error", "CODE": "500"})
 
